@@ -1,0 +1,345 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>SensirenGPT (B-GPT) • Local Companion</title>
+  <style>
+    :root { color-scheme: dark; }
+    body { margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; background:#0b0b10; color:#e9e9ef; }
+    .wrap { max-width: 980px; margin: 0 auto; padding: 18px; }
+    .card { background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.10); border-radius: 16px; padding: 14px; box-shadow: 0 10px 30px rgba(0,0,0,0.35); }
+    h1 { font-size: 18px; margin: 0 0 10px; letter-spacing: 0.2px; }
+    .row { display:flex; gap:10px; flex-wrap: wrap; align-items:center; }
+    .pill { padding: 8px 10px; border-radius: 999px; border: 1px solid rgba(255,255,255,0.12); background: rgba(0,0,0,0.25); }
+    label { font-size: 12px; opacity: 0.85; display:block; margin-bottom: 4px; }
+    input[type="range"] { width: 220px; }
+    input[type="text"] { width: 320px; max-width: 100%; padding: 10px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.14); background: rgba(0,0,0,0.30); color:#e9e9ef; }
+    button { padding: 10px 12px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.14); background: rgba(255,255,255,0.08); color:#e9e9ef; cursor:pointer; }
+    button:hover { background: rgba(255,255,255,0.12); }
+    .chat { margin-top: 12px; height: 55vh; overflow:auto; padding: 10px; border-radius: 14px; border: 1px solid rgba(255,255,255,0.10); background: rgba(0,0,0,0.28); }
+    .msg { padding: 10px 12px; border-radius: 14px; margin: 8px 0; max-width: 85%; white-space: pre-wrap; }
+    .me { margin-left:auto; background: rgba(120,120,255,0.18); border: 1px solid rgba(120,120,255,0.25); }
+    .bgpt { margin-right:auto; background: rgba(255,120,200,0.14); border: 1px solid rgba(255,120,200,0.22); }
+    .sys { margin: 0 auto; max-width: 95%; background: rgba(255,255,255,0.06); border: 1px dashed rgba(255,255,255,0.18); opacity: 0.9; }
+    .composer { display:flex; gap:10px; margin-top: 12px; }
+    textarea { flex:1; min-height: 44px; max-height: 140px; resize: vertical; padding: 10px 12px; border-radius: 14px; border: 1px solid rgba(255,255,255,0.14); background: rgba(0,0,0,0.30); color:#e9e9ef; }
+    .tiny { font-size: 12px; opacity: 0.8; margin-top: 8px; line-height: 1.35; }
+    .right { margin-left:auto; display:flex; gap:10px; flex-wrap:wrap; }
+    .kbd { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; padding: 2px 6px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.14); background: rgba(0,0,0,0.35); }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <h1>SensirenGPT (B-GPT) • Local-first Companion</h1>
+
+      <div class="row">
+        <div class="pill">
+          <label>Mode</label>
+          <div class="row" style="gap:8px;">
+            <button id="modeBtn" title="Toggle Companion / Co-Worker">Companion</button>
+            <span class="kbd" id="modeHint">warm • soothing</span>
+          </div>
+        </div>
+
+        <div class="pill">
+          <label>Warmth ↔ Blunt</label>
+          <input id="tone" type="range" min="0" max="100" value="65" />
+          <div class="tiny" id="toneLabel">65 (warm)</div>
+        </div>
+
+        <div class="pill">
+          <label>Local model endpoint (optional)</label>
+          <input id="endpoint" type="text" placeholder="http://localhost:11434 (Ollama)" />
+          <div class="tiny">Leave blank = no model calls (still saves + organizes + templates).</div>
+        </div>
+
+        <div class="right">
+          <button id="exportBtn">Export Vault (JSON)</button>
+          <button id="importBtn">Import Vault (JSON)</button>
+          <input id="importFile" type="file" accept="application/json" hidden />
+          <button id="clearBtn" title="Clears local vault only (resets)">Reset Vault</button>
+        </div>
+      </div>
+
+      <div class="chat" id="chat"></div>
+
+      <div class="composer">
+        <textarea id="input" placeholder="Talk to B-GPT… (Shift+Enter = new line, Enter = send)"></textarea>
+        <button id="sendBtn">Send</button>
+      </div>
+
+      <div class="tiny">
+        Everything is stored locally in IndexedDB on this device. Export your vault often. If you later install a local model (Ollama/LM Studio),
+        we can wire replies into it. 🔒
+      </div>
+    </div>
+  </div>
+
+<script>
+/** ========= IndexedDB (simple) ========= **/
+const DB_NAME = "sensirenGPT_db";
+const DB_VERSION = 1;
+const STORE = "messages";
+
+function openDB() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(DB_NAME, DB_VERSION);
+    req.onupgradeneeded = () => {
+      const db = req.result;
+      if (!db.objectStoreNames.contains(STORE)) {
+        const os = db.createObjectStore(STORE, { keyPath: "id" });
+        os.createIndex("ts", "ts");
+      }
+    };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+async function dbPut(msg) {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE, "readwrite");
+    tx.objectStore(STORE).put(msg);
+    tx.oncomplete = () => resolve(true);
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+async function dbGetAll() {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE, "readonly");
+    const req = tx.objectStore(STORE).getAll();
+    req.onsuccess = () => resolve(req.result || []);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+async function dbClear() {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE, "readwrite");
+    tx.objectStore(STORE).clear();
+    tx.oncomplete = () => resolve(true);
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+/** ========= App State ========= **/
+const state = {
+  mode: "companion", // or "coworker"
+  tone: 65,          // 0..100
+};
+
+const el = {
+  chat: document.getElementById("chat"),
+  input: document.getElementById("input"),
+  sendBtn: document.getElementById("sendBtn"),
+  modeBtn: document.getElementById("modeBtn"),
+  modeHint: document.getElementById("modeHint"),
+  tone: document.getElementById("tone"),
+  toneLabel: document.getElementById("toneLabel"),
+  endpoint: document.getElementById("endpoint"),
+  exportBtn: document.getElementById("exportBtn"),
+  importBtn: document.getElementById("importBtn"),
+  importFile: document.getElementById("importFile"),
+  clearBtn: document.getElementById("clearBtn"),
+};
+
+function uid() {
+  return crypto.randomUUID ? crypto.randomUUID() : (Date.now()+"-"+Math.random().toString(16).slice(2));
+}
+
+function toneDescriptor(v) {
+  if (v >= 80) return `${v} (very warm)`;
+  if (v >= 60) return `${v} (warm)`;
+  if (v >= 40) return `${v} (neutral)`;
+  if (v >= 20) return `${v} (blunt)`;
+  return `${v} (very blunt)`;
+}
+
+function renderMessage(m) {
+  const div = document.createElement("div");
+  div.className = "msg " + (m.role === "user" ? "me" : m.role === "assistant" ? "bgpt" : "sys");
+  div.textContent = m.content;
+  el.chat.appendChild(div);
+  el.chat.scrollTop = el.chat.scrollHeight;
+}
+
+function setMode(next) {
+  state.mode = next;
+  if (state.mode === "companion") {
+    el.modeBtn.textContent = "Companion";
+    el.modeHint.textContent = "warm • soothing";
+  } else {
+    el.modeBtn.textContent = "Co-Worker";
+    el.modeHint.textContent = "direct • task-first";
+  }
+}
+
+/** ========= Local reply (fallback) ========= **/
+function localFallbackReply(userText) {
+  const t = state.tone;
+  const isCompanion = state.mode === "companion";
+  const warmth = t >= 60;
+
+  if (isCompanion) {
+    const opener = warmth ? "I’m here with you." : "I hear you.";
+    return `${opener}\n\nTell me the one thing you want most from this moment.\n\n(If you want, I can save a short “anchor line” for this feeling in your vault.)`;
+  } else {
+    return `Got it.\n\n1) What’s the exact outcome?\n2) What’s the next smallest step?\n3) What should we ignore for now?\n\nReply with one sentence for #1 and I’ll turn it into a checklist.`;
+  }
+}
+
+/** ========= Optional local model call (Ollama-like) ========= **/
+async function tryLocalModel(userText, history) {
+  const base = (el.endpoint.value || "").trim();
+  if (!base) return null;
+
+  const system = state.mode === "companion"
+    ? `You are B-GPT, a warm, private companion. Match the user's tone. Be supportive, grounded, and consent-respecting.`
+    : `You are B-GPT, a direct coworker. Be concise, task-focused, and practical.`;
+
+  const toneHint = `Warmth: ${state.tone}/100.`;
+
+  const transcript = history
+    .filter(m => m.role === "user" || m.role === "assistant")
+    .slice(-12)
+    .map(m => (m.role === "user" ? `User: ${m.content}` : `Assistant: ${m.content}`))
+    .join("\n");
+
+  const prompt = `${system}\n${toneHint}\n\nConversation so far:\n${transcript}\n\nUser: ${userText}\nAssistant:`;
+
+  try {
+    const res = await fetch(base.replace(/\/$/, "") + "/api/generate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "llama3.1",
+        prompt,
+        stream: false
+      })
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return (data && (data.response || data.output || "")).trim() || null;
+  } catch {
+    return null;
+  }
+}
+
+/** ========= Send flow ========= **/
+async function send() {
+  const text = el.input.value.trim();
+  if (!text) return;
+  el.input.value = "";
+
+  const userMsg = { id: uid(), ts: Date.now(), role: "user", content: text };
+  await dbPut(userMsg);
+  renderMessage(userMsg);
+
+  const history = await dbGetAll();
+
+  let reply = await tryLocalModel(text, history);
+  if (!reply) reply = localFallbackReply(text);
+
+  const asstMsg = { id: uid(), ts: Date.now(), role: "assistant", content: reply };
+  await dbPut(asstMsg);
+  renderMessage(asstMsg);
+}
+
+/** ========= Export / Import ========= **/
+async function exportVault() {
+  const all = await dbGetAll();
+  all.sort((a,b) => a.ts - b.ts);
+  const payload = {
+    app: "SensirenGPT (B-GPT)",
+    exported_at: new Date().toISOString(),
+    mode: state.mode,
+    tone: state.tone,
+    messages: all
+  };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `sensirenGPT_vault_${new Date().toISOString().slice(0,10)}.json`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2500);
+}
+
+async function importVault(file) {
+  const txt = await file.text();
+  const data = JSON.parse(txt);
+  const msgs = Array.isArray(data.messages) ? data.messages : [];
+  for (const m of msgs) {
+    if (m && m.id && m.ts && m.role && typeof m.content === "string") {
+      await dbPut(m);
+    }
+  }
+  await loadAndRender();
+  systemNote("Imported vault entries (append-only).");
+}
+
+function systemNote(text) {
+  const m = { id: uid(), ts: Date.now(), role: "system", content: text };
+  dbPut(m).then(() => renderMessage(m));
+}
+
+/** ========= Init ========= **/
+async function loadAndRender() {
+  el.chat.innerHTML = "";
+  const all = await dbGetAll();
+  all.sort((a,b) => a.ts - b.ts);
+  for (const m of all) renderMessage(m);
+}
+
+el.sendBtn.addEventListener("click", send);
+el.input.addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); }
+});
+
+el.modeBtn.addEventListener("click", () => {
+  setMode(state.mode === "companion" ? "coworker" : "companion");
+  systemNote(`Mode switched to ${state.mode.toUpperCase()}.`);
+});
+
+el.tone.addEventListener("input", () => {
+  state.tone = Number(el.tone.value);
+  el.toneLabel.textContent = toneDescriptor(state.tone);
+});
+
+el.exportBtn.addEventListener("click", exportVault);
+
+el.importBtn.addEventListener("click", () => el.importFile.click());
+el.importFile.addEventListener("change", async () => {
+  const f = el.importFile.files && el.importFile.files[0];
+  if (!f) return;
+  await importVault(f);
+  el.importFile.value = "";
+});
+
+el.clearBtn.addEventListener("click", async () => {
+  const ok = confirm("Reset local vault on this device? This cannot be undone unless you exported a backup.");
+  if (!ok) return;
+  await dbClear();
+  await loadAndRender();
+  systemNote("Vault reset on this device.");
+});
+
+(async () => {
+  setMode("companion");
+  state.tone = Number(el.tone.value);
+  el.toneLabel.textContent = toneDescriptor(state.tone);
+  await loadAndRender();
+  if ((await dbGetAll()).length === 0) {
+    systemNote("Welcome. This is local-first. Export your vault often. When ready, we can add voice notes + personality presets.");
+  }
+})();
+</script>
+</body>
+</html>
