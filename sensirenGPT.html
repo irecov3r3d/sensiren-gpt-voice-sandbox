@@ -161,10 +161,15 @@ function toneDescriptor(v) {
   return `${v} (very blunt)`;
 }
 
-function renderMessage(m) {
+function createMessageElement(m) {
   const div = document.createElement("div");
   div.className = "msg " + (m.role === "user" ? "me" : m.role === "assistant" ? "bgpt" : "sys");
   div.textContent = m.content;
+  return div;
+}
+
+function renderMessage(m) {
+  const div = createMessageElement(m);
   el.chat.appendChild(div);
   el.chat.scrollTop = el.chat.scrollHeight;
 }
@@ -295,7 +300,12 @@ async function loadAndRender() {
   el.chat.innerHTML = "";
   const all = await dbGetAll();
   all.sort((a,b) => a.ts - b.ts);
-  for (const m of all) renderMessage(m);
+  const frag = document.createDocumentFragment();
+  for (const m of all) {
+    frag.appendChild(createMessageElement(m));
+  }
+  el.chat.appendChild(frag);
+  el.chat.scrollTop = el.chat.scrollHeight;
 }
 
 el.sendBtn.addEventListener("click", send);
