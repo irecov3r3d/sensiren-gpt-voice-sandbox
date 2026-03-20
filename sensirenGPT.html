@@ -77,7 +77,9 @@
     </div>
   </div>
 
-<script>
+<script type="module">
+import { toneDescriptor } from './utils.js';
+
 /** ========= IndexedDB (simple) ========= **/
 const DB_NAME = "sensirenGPT_db";
 const DB_VERSION = 1;
@@ -151,14 +153,6 @@ const el = {
 
 function uid() {
   return crypto.randomUUID ? crypto.randomUUID() : (Date.now()+"-"+Math.random().toString(16).slice(2));
-}
-
-function toneDescriptor(v) {
-  if (v >= 80) return `${v} (very warm)`;
-  if (v >= 60) return `${v} (warm)`;
-  if (v >= 40) return `${v} (neutral)`;
-  if (v >= 20) return `${v} (blunt)`;
-  return `${v} (very blunt)`;
 }
 
 function renderMessage(m) {

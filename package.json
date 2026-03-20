@@ -1,0 +1,13 @@
+{
+  "name": "sensiren-gpt-voice-sandbox",
+  "version": "1.0.0",
+  "description": "Welcome to the Sensiren GPT project! This repository contains a suite of web-based tools designed to facilitate interactive AI chat experiences and advanced voice experimentation.",
+  "main": "index.js",
+  "scripts": {
+    "test": "bun test"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "MIT",
+  "type": "module"
+}
