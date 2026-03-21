@@ -1,0 +1,9 @@
+{
+  "name": "sensiren-gpt",
+  "version": "1.0.0",
+  "description": "Sensiren GPT & Voice Sandbox",
+  "type": "module",
+  "scripts": {
+    "test": "bun test"
+  }
+}
