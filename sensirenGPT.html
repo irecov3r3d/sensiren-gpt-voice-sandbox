@@ -3,94 +3,177 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>SensirenGPT (B-GPT) • Local Companion</title>
+  <title>SensirenGPT (B-GPT) • Dual Companion</title>
   <style>
-    :root { color-scheme: dark; }
-    body { margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; background:#0b0b10; color:#e9e9ef; }
+    :root {
+      color-scheme: dark;
+      --bg: #0b0b10;
+      --card-bg: rgba(255,255,255,0.06);
+      --accent: rgba(255,120,200,0.22);
+      --msg-me: rgba(120,120,255,0.18);
+      --msg-bgpt: rgba(255,120,200,0.14);
+      --text: #e9e9ef;
+    }
+    body { margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; background: var(--bg); color: var(--text); transition: background 0.5s ease; }
+    body.nurturing {
+      --bg: #120a15;
+      --accent: #ff78c8;
+      --msg-bgpt: rgba(255,120,200,0.2);
+    }
+    body.business {
+      --bg: #0a0f15;
+      --accent: #78aaff;
+      --msg-bgpt: rgba(120,170,255,0.15);
+    }
+
     .wrap { max-width: 980px; margin: 0 auto; padding: 18px; }
-    .card { background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.10); border-radius: 16px; padding: 14px; box-shadow: 0 10px 30px rgba(0,0,0,0.35); }
+    .card { background: var(--card-bg); border: 1px solid rgba(255,255,255,0.10); border-radius: 16px; padding: 14px; box-shadow: 0 10px 30px rgba(0,0,0,0.35); }
     h1 { font-size: 18px; margin: 0 0 10px; letter-spacing: 0.2px; }
     .row { display:flex; gap:10px; flex-wrap: wrap; align-items:center; }
     .pill { padding: 8px 10px; border-radius: 999px; border: 1px solid rgba(255,255,255,0.12); background: rgba(0,0,0,0.25); }
     label { font-size: 12px; opacity: 0.85; display:block; margin-bottom: 4px; }
-    input[type="range"] { width: 220px; }
-    input[type="text"] { width: 320px; max-width: 100%; padding: 10px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.14); background: rgba(0,0,0,0.30); color:#e9e9ef; }
-    button { padding: 10px 12px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.14); background: rgba(255,255,255,0.08); color:#e9e9ef; cursor:pointer; }
+    input[type="range"] { width: 150px; }
+    input[type="text"] { width: 320px; max-width: 100%; padding: 10px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.14); background: rgba(0,0,0,0.30); color: var(--text); }
+    button { padding: 10px 12px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.14); background: rgba(255,255,255,0.08); color: var(--text); cursor:pointer; }
     button:hover { background: rgba(255,255,255,0.12); }
-    .chat { margin-top: 12px; height: 55vh; overflow:auto; padding: 10px; border-radius: 14px; border: 1px solid rgba(255,255,255,0.10); background: rgba(0,0,0,0.28); }
+    button.active { background: var(--accent); color: #000; border-color: var(--accent); }
+
+    #companion-stage {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 20px;
+      background: rgba(255,255,255,0.03);
+      border-radius: 16px;
+      margin-bottom: 12px;
+      min-height: 260px;
+      border: 1px solid rgba(255,255,255,0.05);
+    }
+    #character-visual { width: 200px; height: 200px; position: relative; }
+    .controls { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin-top: 15px; }
+
+    #research-sandbox {
+      background: rgba(0,0,0,0.4);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 12px;
+      padding: 15px;
+      margin-top: 12px;
+      max-height: 400px;
+      overflow: auto;
+    }
+
+    .chat { margin-top: 12px; height: 40vh; overflow:auto; padding: 10px; border-radius: 14px; border: 1px solid rgba(255,255,255,0.10); background: rgba(0,0,0,0.28); }
     .msg { padding: 10px 12px; border-radius: 14px; margin: 8px 0; max-width: 85%; white-space: pre-wrap; }
-    .me { margin-left:auto; background: rgba(120,120,255,0.18); border: 1px solid rgba(120,120,255,0.25); }
-    .bgpt { margin-right:auto; background: rgba(255,120,200,0.14); border: 1px solid rgba(255,120,200,0.22); }
-    .sys { margin: 0 auto; max-width: 95%; background: rgba(255,255,255,0.06); border: 1px dashed rgba(255,255,255,0.18); opacity: 0.9; }
+    .me { margin-left:auto; background: var(--msg-me); border: 1px solid rgba(120,120,255,0.25); }
+    .bgpt { margin-right:auto; background: var(--msg-bgpt); border: 1px solid var(--accent); }
+    .sys { margin: 0 auto; max-width: 95%; background: rgba(255,255,255,0.06); border: 1px dashed rgba(255,255,255,0.18); opacity: 0.9; font-size: 13px; text-align: center; }
+
     .composer { display:flex; gap:10px; margin-top: 12px; }
-    textarea { flex:1; min-height: 44px; max-height: 140px; resize: vertical; padding: 10px 12px; border-radius: 14px; border: 1px solid rgba(255,255,255,0.14); background: rgba(0,0,0,0.30); color:#e9e9ef; }
+    textarea { flex:1; min-height: 44px; max-height: 140px; resize: vertical; padding: 10px 12px; border-radius: 14px; border: 1px solid rgba(255,255,255,0.14); background: rgba(0,0,0,0.30); color: var(--text); }
     .tiny { font-size: 12px; opacity: 0.8; margin-top: 8px; line-height: 1.35; }
     .right { margin-left:auto; display:flex; gap:10px; flex-wrap:wrap; }
     .kbd { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; padding: 2px 6px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.14); background: rgba(0,0,0,0.35); }
+    .hidden { display: none !important; }
   </style>
 </head>
-<body>
+<body class="nurturing">
   <div class="wrap">
     <div class="card">
-      <h1>SensirenGPT (B-GPT) • Local-first Companion</h1>
-
       <div class="row">
-        <div class="pill">
-          <label>Mode</label>
-          <div class="row" style="gap:8px;">
-            <button id="modeBtn" title="Toggle Companion / Co-Worker">Companion</button>
-            <span class="kbd" id="modeHint">warm • soothing</span>
+        <h1>SensirenGPT (B-GPT)</h1>
+        <div class="right">
+          <button id="modeToggle">Switch to Business Mode</button>
+        </div>
+      </div>
+
+      <!-- Therapeutic Stage -->
+      <div id="companion-stage">
+        <div id="character-visual">
+          <!-- SVG will be injected here -->
+        </div>
+        <div class="controls">
+          <div class="pill">
+            <label>Avatar</label>
+            <div class="row" id="avatarBtns">
+              <button data-avatar="1" class="active">A1</button>
+              <button data-avatar="2">A2</button>
+              <button data-avatar="3">A3</button>
+            </div>
+          </div>
+          <div class="pill">
+            <label>Outfit</label>
+            <div class="row" id="outfitBtns">
+              <button data-outfit="casual" class="active">Casual</button>
+              <button data-outfit="cozy">Cozy</button>
+              <button data-outfit="formal">Formal</button>
+            </div>
+          </div>
+          <div class="pill">
+            <label>Empathy</label>
+            <input id="empathyRange" type="range" min="0" max="100" value="80" />
+          </div>
+          <div class="pill">
+            <label>Energy</label>
+            <input id="energyRange" type="range" min="0" max="100" value="50" />
+          </div>
+          <div class="pill">
+            <label>Softness</label>
+            <input id="softnessRange" type="range" min="0" max="100" value="70" />
           </div>
         </div>
+      </div>
 
-        <div class="pill">
-          <label>Warmth ↔ Blunt</label>
-          <input id="tone" type="range" min="0" max="100" value="65" />
-          <div class="tiny" id="toneLabel">65 (warm)</div>
+      <!-- Business Stage (Hidden by default) -->
+      <div id="business-stage" class="hidden">
+        <div id="research-sandbox">
+          <div class="sys">Interactive Research Sandbox. Ask me to generate a research tool or a data visualization.</div>
         </div>
+      </div>
 
+      <div class="row" style="margin-top: 15px;">
         <div class="pill">
-          <label>Local model endpoint (optional)</label>
+          <label>Local Model Endpoint</label>
           <input id="endpoint" type="text" placeholder="http://localhost:11434 (Ollama)" />
-          <div class="tiny">Leave blank = no model calls (still saves + organizes + templates).</div>
         </div>
-
         <div class="right">
-          <button id="exportBtn">Export Vault (JSON)</button>
-          <button id="importBtn">Import Vault (JSON)</button>
+          <button id="exportBtn">Export Vault</button>
+          <button id="importBtn">Import Vault</button>
           <input id="importFile" type="file" accept="application/json" hidden />
-          <button id="clearBtn" title="Clears local vault only (resets)">Reset Vault</button>
+          <button id="clearBtn">Reset</button>
         </div>
       </div>
 
       <div class="chat" id="chat"></div>
 
       <div class="composer">
-        <textarea id="input" placeholder="Talk to B-GPT… (Shift+Enter = new line, Enter = send)"></textarea>
+        <textarea id="input" placeholder="Talk to B-GPT…"></textarea>
         <button id="sendBtn">Send</button>
       </div>
 
       <div class="tiny">
-        Everything is stored locally in IndexedDB on this device. Export your vault often. If you later install a local model (Ollama/LM Studio),
-        we can wire replies into it. 🔒
+        Local-first. Everything stays on this device. 🔒
       </div>
     </div>
   </div>
 
 <script>
-/** ========= IndexedDB (simple) ========= **/
+/** ========= IndexedDB (advanced) ========= **/
 const DB_NAME = "sensirenGPT_db";
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 const STORE = "messages";
+const SETTINGS_STORE = "settings";
 
 function openDB() {
   return new Promise((resolve, reject) => {
     const req = indexedDB.open(DB_NAME, DB_VERSION);
-    req.onupgradeneeded = () => {
+    req.onupgradeneeded = (e) => {
       const db = req.result;
       if (!db.objectStoreNames.contains(STORE)) {
         const os = db.createObjectStore(STORE, { keyPath: "id" });
         os.createIndex("ts", "ts");
+      }
+      if (!db.objectStoreNames.contains(SETTINGS_STORE)) {
+        db.createObjectStore(SETTINGS_STORE, { keyPath: "id" });
       }
     };
     req.onsuccess = () => resolve(req.result);
@@ -121,44 +204,67 @@ async function dbGetAll() {
 async function dbClear() {
   const db = await openDB();
   return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE, "readwrite");
+    const tx = db.transaction([STORE, SETTINGS_STORE], "readwrite");
     tx.objectStore(STORE).clear();
+    tx.objectStore(SETTINGS_STORE).clear();
     tx.oncomplete = () => resolve(true);
     tx.onerror = () => reject(tx.error);
   });
 }
 
+async function saveSettings(settings) {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(SETTINGS_STORE, "readwrite");
+    tx.objectStore(SETTINGS_STORE).put({ id: "current", ...settings });
+    tx.oncomplete = () => resolve(true);
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+async function loadSettings() {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(SETTINGS_STORE, "readonly");
+    const req = tx.objectStore(SETTINGS_STORE).get("current");
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
 /** ========= App State ========= **/
-const state = {
-  mode: "companion", // or "coworker"
-  tone: 65,          // 0..100
+let state = {
+  mode: "nurturing",
+  activeAvatar: "1",
+  outfit: "casual",
+  empathy: 80,
+  energy: 50,
+  softness: 70
 };
 
 const el = {
   chat: document.getElementById("chat"),
   input: document.getElementById("input"),
   sendBtn: document.getElementById("sendBtn"),
-  modeBtn: document.getElementById("modeBtn"),
-  modeHint: document.getElementById("modeHint"),
-  tone: document.getElementById("tone"),
-  toneLabel: document.getElementById("toneLabel"),
+  modeToggle: document.getElementById("modeToggle"),
+  companionStage: document.getElementById("companion-stage"),
+  businessStage: document.getElementById("business-stage"),
+  researchSandbox: document.getElementById("research-sandbox"),
+  characterVisual: document.getElementById("character-visual"),
   endpoint: document.getElementById("endpoint"),
   exportBtn: document.getElementById("exportBtn"),
   importBtn: document.getElementById("importBtn"),
   importFile: document.getElementById("importFile"),
   clearBtn: document.getElementById("clearBtn"),
+  avatarBtns: document.querySelectorAll("#avatarBtns button"),
+  outfitBtns: document.querySelectorAll("#outfitBtns button"),
+  empathyRange: document.getElementById("empathyRange"),
+  energyRange: document.getElementById("energyRange"),
+  softnessRange: document.getElementById("softnessRange")
 };
 
 function uid() {
   return crypto.randomUUID ? crypto.randomUUID() : (Date.now()+"-"+Math.random().toString(16).slice(2));
-}
-
-function toneDescriptor(v) {
-  if (v >= 80) return `${v} (very warm)`;
-  if (v >= 60) return `${v} (warm)`;
-  if (v >= 40) return `${v} (neutral)`;
-  if (v >= 20) return `${v} (blunt)`;
-  return `${v} (very blunt)`;
 }
 
 function renderMessage(m) {
@@ -169,125 +275,110 @@ function renderMessage(m) {
   el.chat.scrollTop = el.chat.scrollHeight;
 }
 
-function setMode(next) {
+/** ========= Character Rendering ========= **/
+function renderCharacter() {
+  const { activeAvatar, outfit, empathy, energy, softness } = state;
+  const hue = activeAvatar === "1" ? 330 : activeAvatar === "2" ? 200 : 120;
+  const saturation = 50 + (empathy / 2);
+  const brightness = 40 + (energy / 2);
+  const blur = (100 - softness) / 10;
+  const color = `hsl(${hue}, ${saturation}%, ${brightness}%)`;
+
+  el.characterVisual.innerHTML = `
+    <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <filter id="soften">
+          <feGaussianBlur in="SourceGraphic" stdDeviation="${blur}" />
+        </filter>
+      </defs>
+      <circle cx="50" cy="50" r="${30 + energy/5}" fill="${color}" filter="url(#soften)" />
+      <circle cx="40" cy="45" r="3" fill="white" opacity="0.8" />
+      <circle cx="60" cy="45" r="3" fill="white" opacity="0.8" />
+      <path d="M 40 60 Q 50 ${60 + (empathy/10)} 60 60" stroke="white" stroke-width="2" fill="none" stroke-linecap="round" />
+      <rect x="30" y="75" width="40" height="15" rx="5" fill="white" opacity="${outfit === 'casual' ? 0.1 : outfit === 'cozy' ? 0.3 : 0.5}" />
+    </svg>
+    <div style="position:absolute; bottom:0; width:100%; text-align:center; font-size:12px; opacity:0.7;">
+      ${outfit} mode
+    </div>
+  `;
+}
+
+function setMode(next, save = true) {
   state.mode = next;
-  if (state.mode === "companion") {
-    el.modeBtn.textContent = "Companion";
-    el.modeHint.textContent = "warm • soothing";
+  if (state.mode === "nurturing") {
+    document.body.className = "nurturing";
+    el.modeToggle.textContent = "Switch to Business Mode";
+    el.companionStage.classList.remove("hidden");
+    el.businessStage.classList.add("hidden");
   } else {
-    el.modeBtn.textContent = "Co-Worker";
-    el.modeHint.textContent = "direct • task-first";
+    document.body.className = "business";
+    el.modeToggle.textContent = "Switch to Therapeutic Mode";
+    el.companionStage.classList.add("hidden");
+    el.businessStage.classList.remove("hidden");
   }
+  if (save) saveSettings(state);
 }
 
-/** ========= Local reply (fallback) ========= **/
+/** ========= Interaction logic ========= **/
 function localFallbackReply(userText) {
-  const t = state.tone;
-  const isCompanion = state.mode === "companion";
-  const warmth = t >= 60;
-
-  if (isCompanion) {
-    const opener = warmth ? "I’m here with you." : "I hear you.";
-    return `${opener}\n\nTell me the one thing you want most from this moment.\n\n(If you want, I can save a short “anchor line” for this feeling in your vault.)`;
+  if (state.mode === "nurturing") {
+    return `I'm here for you. Your feelings are valid. I've adjusted my core empathy to ${state.empathy}% to better support you.`;
   } else {
-    return `Got it.\n\n1) What’s the exact outcome?\n2) What’s the next smallest step?\n3) What should we ignore for now?\n\nReply with one sentence for #1 and I’ll turn it into a checklist.`;
+    return `Analysis: "${userText}".\n\nI can assist with research. Should I generate a visualization tool?`;
   }
 }
 
-/** ========= Optional local model call (Ollama-like) ========= **/
 async function tryLocalModel(userText, history) {
   const base = (el.endpoint.value || "").trim();
   if (!base) return null;
-
-  const system = state.mode === "companion"
-    ? `You are B-GPT, a warm, private companion. Match the user's tone. Be supportive, grounded, and consent-respecting.`
-    : `You are B-GPT, a direct coworker. Be concise, task-focused, and practical.`;
-
-  const toneHint = `Warmth: ${state.tone}/100.`;
-
-  const transcript = history
-    .filter(m => m.role === "user" || m.role === "assistant")
-    .slice(-12)
-    .map(m => (m.role === "user" ? `User: ${m.content}` : `Assistant: ${m.content}`))
-    .join("\n");
-
-  const prompt = `${system}\n${toneHint}\n\nConversation so far:\n${transcript}\n\nUser: ${userText}\nAssistant:`;
-
+  const system = state.mode === "nurturing"
+    ? `You are B-GPT, a therapeutic companion. Be nurturing. current empathy: ${state.empathy}%.`
+    : `You are B-GPT, a business research companion. Be analytical. Focus on interactive solutions.`;
+  const transcript = history.filter(m => m.role === "user" || m.role === "assistant").slice(-10).map(m => (m.role === "user" ? `User: ${m.content}` : `Assistant: ${m.content}`)).join("\n");
+  const prompt = `${system}\n\nConversation:\n${transcript}\n\nUser: ${userText}\nAssistant:`;
   try {
-    const res = await fetch(base.replace(/\/$/, "") + "/api/generate", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: "llama3.1",
-        prompt,
-        stream: false
-      })
-    });
+    const res = await fetch(base.replace(/\/$/, "") + "/api/generate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ model: "llama3.1", prompt, stream: false }) });
     if (!res.ok) return null;
     const data = await res.json();
     return (data && (data.response || data.output || "")).trim() || null;
-  } catch {
-    return null;
-  }
+  } catch { return null; }
 }
 
-/** ========= Send flow ========= **/
 async function send() {
   const text = el.input.value.trim();
   if (!text) return;
   el.input.value = "";
-
   const userMsg = { id: uid(), ts: Date.now(), role: "user", content: text };
   await dbPut(userMsg);
   renderMessage(userMsg);
-
   const history = await dbGetAll();
-
   let reply = await tryLocalModel(text, history);
   if (!reply) reply = localFallbackReply(text);
-
+  if (state.mode === "business" && reply.includes("```html")) {
+    const html = reply.split("```html")[1].split("```")[0];
+    el.researchSandbox.innerHTML = html;
+  }
   const asstMsg = { id: uid(), ts: Date.now(), role: "assistant", content: reply };
   await dbPut(asstMsg);
   renderMessage(asstMsg);
 }
 
-/** ========= Export / Import ========= **/
+/** ========= Persistence ========= **/
 async function exportVault() {
   const all = await dbGetAll();
-  all.sort((a,b) => a.ts - b.ts);
-  const payload = {
-    app: "SensirenGPT (B-GPT)",
-    exported_at: new Date().toISOString(),
-    mode: state.mode,
-    tone: state.tone,
-    messages: all
-  };
-  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+  const blob = new Blob([JSON.stringify({ app: "SensirenGPT Dual", state, messages: all }, null, 2)], { type: "application/json" });
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
-  a.download = `sensirenGPT_vault_${new Date().toISOString().slice(0,10)}.json`;
-  document.body.appendChild(a);
+  a.download = `sensiren_vault_${new Date().toISOString().slice(0,10)}.json`;
   a.click();
-  a.remove();
-  setTimeout(() => URL.revokeObjectURL(a.href), 2500);
 }
 
 async function importVault(file) {
   const txt = await file.text();
   const data = JSON.parse(txt);
-  const msgs = Array.isArray(data.messages) ? data.messages : [];
-  for (const m of msgs) {
-    if (m && m.id && m.ts && m.role && typeof m.content === "string") {
-      await dbPut(m);
-    }
-  }
-  await loadAndRender();
-  systemNote("Imported vault entries (append-only).");
-}
-
-function systemNote(text) {
-  const m = { id: uid(), ts: Date.now(), role: "system", content: text };
-  dbPut(m).then(() => renderMessage(m));
+  if (data.messages) for (const m of data.messages) await dbPut(m);
+  if (data.state) { state = { ...state, ...data.state }; await saveSettings(state); }
+  location.reload();
 }
 
 /** ========= Init ========= **/
@@ -299,46 +390,30 @@ async function loadAndRender() {
 }
 
 el.sendBtn.addEventListener("click", send);
-el.input.addEventListener("keydown", (e) => {
-  if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); }
-});
-
-el.modeBtn.addEventListener("click", () => {
-  setMode(state.mode === "companion" ? "coworker" : "companion");
-  systemNote(`Mode switched to ${state.mode.toUpperCase()}.`);
-});
-
-el.tone.addEventListener("input", () => {
-  state.tone = Number(el.tone.value);
-  el.toneLabel.textContent = toneDescriptor(state.tone);
-});
-
+el.input.addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } });
+el.modeToggle.addEventListener("click", () => { setMode(state.mode === "nurturing" ? "business" : "nurturing"); });
+el.avatarBtns.forEach(btn => { btn.addEventListener("click", () => { el.avatarBtns.forEach(b => b.classList.remove("active")); btn.classList.add("active"); state.activeAvatar = btn.dataset.avatar; renderCharacter(); saveSettings(state); }); });
+el.outfitBtns.forEach(btn => { btn.addEventListener("click", () => { el.outfitBtns.forEach(b => b.classList.remove("active")); btn.classList.add("active"); state.outfit = btn.dataset.outfit; renderCharacter(); saveSettings(state); }); });
+el.empathyRange.addEventListener("input", () => { state.empathy = el.empathyRange.value; renderCharacter(); saveSettings(state); });
+el.energyRange.addEventListener("input", () => { state.energy = el.energyRange.value; renderCharacter(); saveSettings(state); });
+el.softnessRange.addEventListener("input", () => { state.softness = el.softnessRange.value; renderCharacter(); saveSettings(state); });
 el.exportBtn.addEventListener("click", exportVault);
-
 el.importBtn.addEventListener("click", () => el.importFile.click());
-el.importFile.addEventListener("change", async () => {
-  const f = el.importFile.files && el.importFile.files[0];
-  if (!f) return;
-  await importVault(f);
-  el.importFile.value = "";
-});
-
-el.clearBtn.addEventListener("click", async () => {
-  const ok = confirm("Reset local vault on this device? This cannot be undone unless you exported a backup.");
-  if (!ok) return;
-  await dbClear();
-  await loadAndRender();
-  systemNote("Vault reset on this device.");
-});
+el.importFile.addEventListener("change", async () => { const f = el.importFile.files[0]; if (f) await importVault(f); });
+el.clearBtn.addEventListener("click", async () => { if (confirm("Reset all?")) { await dbClear(); location.reload(); } });
 
 (async () => {
-  setMode("companion");
-  state.tone = Number(el.tone.value);
-  el.toneLabel.textContent = toneDescriptor(state.tone);
+  const saved = await loadSettings();
+  if (saved) state = { ...state, ...saved };
   await loadAndRender();
-  if ((await dbGetAll()).length === 0) {
-    systemNote("Welcome. This is local-first. Export your vault often. When ready, we can add voice notes + personality presets.");
-  }
+  setMode(state.mode, false);
+  // Sync UI buttons
+  el.avatarBtns.forEach(b => { if (b.dataset.avatar === state.activeAvatar) b.classList.add("active"); else b.classList.remove("active"); });
+  el.outfitBtns.forEach(b => { if (b.dataset.outfit === state.outfit) b.classList.add("active"); else b.classList.remove("active"); });
+  el.empathyRange.value = state.empathy;
+  el.energyRange.value = state.energy;
+  el.softnessRange.value = state.softness;
+  renderCharacter();
 })();
 </script>
 </body>
