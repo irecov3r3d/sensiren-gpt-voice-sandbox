@@ -127,7 +127,10 @@ let chunks = [];
 let recording = false;
 
 function uid() {
-  return crypto.randomUUID ? crypto.randomUUID() : (Date.now()+"-"+Math.random().toString(16).slice(2));
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
+  const arr = new Uint32Array(2);
+  crypto.getRandomValues(arr);
+  return Date.now() + "-" + arr[0].toString(16) + arr[1].toString(16);
 }
 function setStatus(s) { statusEl.textContent = "Status: " + s; }
 function fmtTime(ts) { return new Date(ts).toLocaleString(); }
