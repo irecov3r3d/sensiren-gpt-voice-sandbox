@@ -65,7 +65,9 @@
     </div>
   </div>
 
-<script>
+<script type="module">
+import { uid } from './utils.js';
+
 const DB_NAME = "voice_sandbox_db";
 const DB_VERSION = 1;
 const STORE = "clips";
@@ -126,9 +128,6 @@ let mediaRecorder = null;
 let chunks = [];
 let recording = false;
 
-function uid() {
-  return crypto.randomUUID ? crypto.randomUUID() : (Date.now()+"-"+Math.random().toString(16).slice(2));
-}
 function setStatus(s) { statusEl.textContent = "Status: " + s; }
 function fmtTime(ts) { return new Date(ts).toLocaleString(); }
 function supportsMedia() { return !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia); }
