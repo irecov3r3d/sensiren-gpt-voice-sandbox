@@ -292,7 +292,7 @@ function systemNote(text) {
 
 /** ========= Init ========= **/
 async function loadAndRender() {
-  el.chat.innerHTML = "";
+  el.chat.replaceChildren();
   const all = await dbGetAll();
   all.sort((a,b) => a.ts - b.ts);
   for (const m of all) renderMessage(m);
